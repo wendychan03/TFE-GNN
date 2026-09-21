@@ -24,7 +24,7 @@ def test():
     dataset = MixTrafficFlowDataset4DGL(header_path=config.HEADER_TEST_GRAPH_DATA,
                                         payload_path=config.TEST_GRAPH_DATA)
     dataloader = GraphDataLoader(dataset, batch_size=32, shuffle=False, collate_fn=mix_collate_fn,
-                                 num_workers=config.NUM_WORKERS, pin_memory=False)
+                                 num_workers=num_workers, pin_memory=False)
 
     label_preds = []
     label_ids = []
@@ -45,6 +45,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", type=str, help="dataset", required=True)
     parser.add_argument("--cuda", type=str, help="cuda", required=True)
+    parser.add_argument("--num_workers", type=int, help="num workers", default=-1)
     opt = parser.parse_args()
 
     if opt.dataset == 'iscx-vpn':
@@ -59,5 +60,6 @@ if __name__ == '__main__':
         raise Exception('Dataset Error')
 
     device = get_device(index=opt.cuda)
+    num_workers = opt.num_workers if opt.num_workers >= 0 else config.NUM_WORKERS
     set_seed()
     test()

@@ -14,10 +14,16 @@ class MixTrafficFlowDataset4DGL(DGLDataset):
         super(MixTrafficFlowDataset4DGL, self).__init__(name="MixTrafficFlowDataset4DGL")
 
     def process(self):
-        self.payload_data, self.label = dgl.load_graphs(self.payload_path)
-        self.header_data, self.label = dgl.load_graphs(self.header_path)
-        self.label = self.label["glabel"]
+        self.payload_data, payload_labels = dgl.load_graphs(self.payload_path)
+        self.header_data, header_labels = dgl.load_graphs(self.header_path)
+        payload_labels = payload_labels["glabel"]
+        header_labels = header_labels["glabel"]
         assert len(self.payload_data) == len(self.header_data), "Error {} != {}".format(len(self.payload_data), len(self.header_data))
+        assert len(payload_labels) == len(header_labels), "Header and payload label counts do not match"
+        assert payload_labels.equal(header_labels), "Header and payload labels do not match"
+        expected_graphs = len(payload_labels) * config.FLOW_PAD_TRUNC_LENGTH
+        assert len(self.payload_data) == expected_graphs, "Graph and flow counts do not match"
+        self.label = payload_labels
 
 
     def __getitem__(self, index):

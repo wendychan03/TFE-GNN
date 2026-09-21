@@ -1,9 +1,12 @@
 import argparse
-import numpy as np
-from scapy.all import *
+import os
 
-from utils import show_time, get_bytes_from_raw
+import numpy as np
+from scapy.all import IP, IPv6, TCP, sniff
+
+from utils import show_time
 from config import *
+from preprocessing_utils import sanitize_tcp_header
 
 
 PKT_COUNT = 0
@@ -23,27 +26,39 @@ mss = []
 
 def process(pkt):
     global PKT_COUNT, p_header_list, p_payload_list, payload_length, pkt_length, src_ip, dst_ip, src_port, dst_port, time, protocol, flag, mss
-    PKT_COUNT += 1
-    _, p_packet = get_bytes_from_raw(hexdump(pkt, dump=True))
-    p_payload = []
-    if pkt.haslayer("Raw"):
-        _, p_payload = get_bytes_from_raw(hexdump(pkt["Raw"].load, dump=True))
+    if not pkt.haslayer(TCP) or not (pkt.haslayer(IP) or pkt.haslayer(IPv6)):
+        return
 
-    p_header = p_packet[:(len(p_packet) - len(p_payload))]
+    network_layer = pkt[IP] if pkt.haslayer(IP) else pkt[IPv6]
+    tcp_layer = pkt[TCP]
+    network_packet = bytes(network_layer)
+    tcp_segment = bytes(tcp_layer)
+    tcp_header_length = (tcp_layer.dataofs or 5) * 4
+
+    # 从 IP 层开始取字节，因此 Ethernet/VLAN 头不会混入模型输入。
+    p_header = sanitize_tcp_header(
+        network_packet=network_packet,
+        tcp_segment=tcp_segment,
+        ip_version=network_layer.version,
+        tcp_header_length=tcp_header_length,
+    )
+    p_payload = list(bytes(tcp_layer.payload))
+
+    PKT_COUNT += 1
     p_header_list.append(p_header)
     p_payload_list.append(p_payload)
 
     payload_length.append(len(p_payload))
-    pkt_length.append(len(p_header) + len(p_payload))
-    src_ip.append(pkt.src)
-    dst_ip.append(pkt.dst)
-    src_port.append(pkt.sport)
-    dst_port.append(pkt.dport)
+    pkt_length.append(len(network_packet))
+    src_ip.append(network_layer.src)
+    dst_ip.append(network_layer.dst)
+    src_port.append(tcp_layer.sport)
+    dst_port.append(tcp_layer.dport)
     time.append(pkt.time)
-    protocol.append(pkt.proto)
-    flag.append(pkt['TCP'].flags)
+    protocol.append(6)
+    flag.append(tcp_layer.flags)
     mss_default = 0
-    for k, v in pkt['TCP'].options:
+    for k, v in tcp_layer.options:
         if k == 'MSS':
             mss_default = v
     mss.append(mss_default)
@@ -90,7 +105,8 @@ def pcap2npy4ISCX(dir_path_dict, save_path_dict):
                                 time=np.array(time, dtype=object),
                                 protocol=np.array(protocol, dtype=object),
                                 flag=np.array(flag, dtype=object),
-                                mss=np.array(mss, dtype=object))
+                                mss=np.array(mss, dtype=object),
+                                header_sanitized=np.array(True))
 
 
 if __name__ == '__main__':
@@ -110,4 +126,3 @@ if __name__ == '__main__':
         raise Exception('Dataset Error')
 
     pcap2npy4ISCX(dir_path_dict=config.DIR_PATH_DICT, save_path_dict=config.DIR_PATH_DICT)
-

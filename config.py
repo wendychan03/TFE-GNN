@@ -24,6 +24,8 @@ class Config:
     BYTE_PAD_TRUNC_LENGTH = 150
     HEADER_BYTE_PAD_TRUNC_LENGTH = 40
     ANOMALOUS_FLOW_THRESHOLD = 10000
+    # 0 是最稳妥的默认值，可避免多进程 DataLoader 卡死或复制大量图数据。
+    NUM_WORKERS = 0
 
 
 '''
@@ -44,7 +46,6 @@ class ISCXVPNConfig(Config):
 
     NUM_CLASSES = 6
     MAX_SEG_PER_CLASS = 9999
-    NUM_WORKERS = 5
 
     BATCH_SIZE = 32
     GRADIENT_ACCUMULATION = 1
@@ -87,7 +88,6 @@ class ISCXNonVPNConfig(Config):
 
     NUM_CLASSES = 6
     MAX_SEG_PER_CLASS = 9999
-    NUM_WORKERS = 5
 
     BATCH_SIZE = 102
     GRADIENT_ACCUMULATION = 5
@@ -130,7 +130,6 @@ class ISCXTorConfig(Config):
 
     NUM_CLASSES = 8
     MAX_SEG_PER_CLASS = 9999
-    NUM_WORKERS = 5
 
     BATCH_SIZE = 32
     GRADIENT_ACCUMULATION = 1
@@ -175,7 +174,6 @@ class ISCXNonTorConfig(Config):
 
     NUM_CLASSES = 8
     MAX_SEG_PER_CLASS = 9999
-    NUM_WORKERS = 5
 
     BATCH_SIZE = 102
     GRADIENT_ACCUMULATION = 5

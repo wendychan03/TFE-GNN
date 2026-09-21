@@ -7,6 +7,7 @@ import torch
 import numpy as np
 
 from config import *
+from preprocessing_utils import filter_aligned_packets
 
 
 config = Config()
@@ -81,57 +82,30 @@ def pad_truncate(flow, type, config):
     return flow
 
 
-def remove(flow):
-    for ind, p in enumerate(flow):
-        ip_header = p[:20]
-        tcp_udp_header = p[20:]
-        ip_header = ip_header[:12]
-        tcp_udp_header = tcp_udp_header[4:]
-
-        renew_header = []
-        renew_header.extend(ip_header)
-        renew_header.extend(tcp_udp_header)
-        flow[ind] = renew_header
-
-    return flow
-
-
 def split_flow_ISCX(file_path, cate, allow_empty, pad_trunc, config, type='payload'):
     file = np.load(file_path, allow_pickle=True)
     packets = file[type]
     if type == 'header':
+        if 'header_sanitized' not in file.files or not bool(file['header_sanitized']):
+            raise ValueError('{} 是旧版 NPZ，请重新运行 pcap2npy.py 生成安全对齐的数据'.format(file_path))
         baseline = file['payload']
     data_list = []
 
     seg_pcap = packets
     if type == 'header':
         seg_baseline = baseline
-    if allow_empty:
-        seg_pcap = [list(p) for ind, p in enumerate(seg_pcap)]
-        if type == 'header':
-            seg_baseline = [list(p) for ind, p in enumerate(seg_baseline)]
-    else:
-        seg_pcap = [list(p) for ind, p in enumerate(seg_pcap) if len(p) != 0]
-        if type == 'header':
-            seg_baseline =[list(p) for ind, p in enumerate(seg_baseline) if len(p) != 0]
-    if type == 'header':
-        if len(seg_baseline) == 0:
-            print("Empty Flow Detected")
-            return data_list
-    else:
-        if len(seg_pcap) == 0:
-            print("Empty Flow Detected")
-            return data_list
+    seg_pcap = filter_aligned_packets(
+        seg_pcap,
+        payloads=seg_baseline if type == 'header' else None,
+        allow_empty=allow_empty,
+    )
+    if len(seg_pcap) == 0:
+        print("Empty Flow Detected")
+        return data_list
     if pad_trunc:
-        if type == 'header':
-            if len(seg_baseline) > config.ANOMALOUS_FLOW_THRESHOLD:
-                print("Anomalous Flow Detected")
-                return data_list
-            seg_pcap = remove(flow=seg_pcap)
-        else:
-            if len(seg_pcap) > config.ANOMALOUS_FLOW_THRESHOLD:
-                print("Anomalous Flow Detected")
-                return data_list
+        if len(seg_pcap) > config.ANOMALOUS_FLOW_THRESHOLD:
+            print("Anomalous Flow Detected")
+            return data_list
         seg_pcap = pad_truncate(flow=seg_pcap, type=type, config=config)
     data_list.append(seg_pcap)
 
@@ -142,6 +116,8 @@ def split_flow_Tor_nonoverlapping(file_path, cate, allow_empty, pad_trunc, confi
     file = np.load(file_path, allow_pickle=True)
     packets = file[type]
     if type == 'header':
+        if 'header_sanitized' not in file.files or not bool(file['header_sanitized']):
+            raise ValueError('{} 是旧版 NPZ，请重新运行 pcap2npy.py 生成安全对齐的数据'.format(file_path))
         baseline = file['payload']
     data_list = []
     time_stamp = np.array(file['time']).astype(np.float64)
@@ -171,32 +147,18 @@ def split_flow_Tor_nonoverlapping(file_path, cate, allow_empty, pad_trunc, confi
         seg_pcap = packets[s_ind: e_ind]
         if type == 'header':
             seg_baseline = baseline[s_ind: e_ind]
-        if allow_empty:
-            seg_pcap = [list(p) for ind, p in enumerate(seg_pcap)]
-            if type == 'header':
-                seg_baseline = [list(p) for ind, p in enumerate(seg_baseline)]
-        else:
-            seg_pcap = [list(p) for ind, p in enumerate(seg_pcap) if len(p) != 0]
-            if type == 'header':
-                seg_baseline =[list(p) for ind, p in enumerate(seg_baseline) if len(p) != 0]
-        if type == 'header':
-            if len(seg_baseline) == 0:
-                print("Empty Flow Detected")
-                continue
-        else:
-            if len(seg_pcap) == 0:
-                print("Empty Flow Detected")
-                continue
+        seg_pcap = filter_aligned_packets(
+            seg_pcap,
+            payloads=seg_baseline if type == 'header' else None,
+            allow_empty=allow_empty,
+        )
+        if len(seg_pcap) == 0:
+            print("Empty Flow Detected")
+            continue
         if pad_trunc:
-            if type == 'header':
-                if len(seg_baseline) > config.ANOMALOUS_FLOW_THRESHOLD:
-                    print("Anomalous Flow Detected")
-                    continue
-                seg_pcap = remove(flow=seg_pcap)
-            else:
-                if len(seg_pcap) > config.ANOMALOUS_FLOW_THRESHOLD:
-                    print("Anomalous Flow Detected")
-                    continue
+            if len(seg_pcap) > config.ANOMALOUS_FLOW_THRESHOLD:
+                print("Anomalous Flow Detected")
+                continue
             seg_pcap = pad_truncate(flow=seg_pcap, type=type, config=config)
         data_list.append(seg_pcap)
 

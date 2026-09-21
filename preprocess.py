@@ -6,6 +6,7 @@ import numpy as np
 
 from utils import show_time, construct_graph, split_flow_Tor_nonoverlapping, split_flow_ISCX
 from config import *
+from preprocessing_utils import deterministic_train_test_split
 
 
 generalConfig = Config()
@@ -20,7 +21,7 @@ def construct_dataset_from_bytes_ISCX(dir_path_dict, type):
     TEST_FLOW_COUNT = dict()
     for category in dir_path_dict:
         dir_path = dir_path_dict[category]
-        file_list = os.listdir(dir_path)
+        file_list = sorted(os.listdir(dir_path))
         data_list = []
         for file in file_list:
             if not file.endswith('.npz'):
@@ -32,10 +33,11 @@ def construct_dataset_from_bytes_ISCX(dir_path_dict, type):
             else:
                 data_list.extend(split_flow_ISCX(file_path, category, allow_empty=False, pad_trunc=True, config=config, type=type))
 
-        data_list = data_list[:config.MAX_SEG_PER_CLASS]
-        split_ind = int(len(data_list) / 10)
-        data_list_train = data_list[split_ind + 1:]
-        data_list_test = data_list[: split_ind + 1]
+        data_list_train, data_list_test = deterministic_train_test_split(
+            data_list,
+            seed=config.SEED + int(category),
+            max_samples=config.MAX_SEG_PER_CLASS,
+        )
 
         train.extend(data_list_train)
         train_label.extend([category] * len(data_list_train))

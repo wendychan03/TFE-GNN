@@ -73,6 +73,6 @@ if __name__ == '__main__':
         raise Exception('Dataset Error')
 
     device = get_device(index=opt.cuda)
-    num_workers = opt.num_workers if opt.num_workers >= 1 else config.NUM_WORKERS
+    num_workers = opt.num_workers if opt.num_workers >= 0 else config.NUM_WORKERS
     set_seed()
     train()
