@@ -29,6 +29,23 @@ pip install scapy
 
 ## Pre-processing
 
+### CICIDS2017/2018 five-class adaptation
+
+`baseline_preprocess.py` implements the shared five-class protocol documented in
+`LHCCA/docs/BASELINE_DATA_ADAPTATION_CN.md`. It streams the raw PCAPs, applies
+the corrected endpoint/time/attempted-flow rules, filters flows without TCP
+payload, caps each dataset at 10,000 flows per class, and writes traceable NPZ
+shards plus the common 10-shot manifests.
+
+```bash
+conda env create -f environment-preprocess.yml
+conda activate tfe-prep
+DATASET_ROOT=/path/to/ETC-datasets python baseline_preprocess.py --dataset all
+```
+
+Use `--max-flows 100` only for a smoke test. Full PCAP preprocessing, DGL graph
+construction, and training should run on the server.
+
 ### Download Datasets
 
 [ISCXVPN2016](https://www.unb.ca/cic/datasets/vpn.html) & [ISCXTOR2016](https://www.unb.ca/cic/datasets/tor.html)
