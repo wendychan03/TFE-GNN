@@ -46,6 +46,29 @@ DATASET_ROOT=/path/to/ETC-datasets python baseline_preprocess.py --dataset all
 Use `--max-flows 100` only for a smoke test. Full PCAP preprocessing, DGL graph
 construction, and training should run on the server.
 
+### Cross-domain five-class training (seed 42)
+
+Create the isolated GPU environment without changing `tfe-prep`:
+
+```bash
+conda env create -f environment-train.yml
+conda activate tfe-train
+```
+
+Build a small graph cache and run the end-to-end smoke test first:
+
+```bash
+python cross_domain.py build-cache --dataset cicids2017 --cache-root /ETC-datasets/processed/TFE-GNN/graphs-smoke --smoke
+python cross_domain.py build-cache --dataset cicids2018 --cache-root /ETC-datasets/processed/TFE-GNN/graphs-smoke --smoke
+python cross_domain.py run --direction cicids2017_to_cicids2018 --cache-root /ETC-datasets/processed/TFE-GNN/graphs-smoke --output-root /TFE-GNN/outputs-smoke --smoke
+python cross_domain.py run --direction cicids2018_to_cicids2017 --cache-root /ETC-datasets/processed/TFE-GNN/graphs-smoke --output-root /TFE-GNN/outputs-smoke --smoke
+```
+
+The full run uses the same commands without `--smoke`, with graph cache root
+`/ETC-datasets/processed/TFE-GNN/graphs` and output root `/TFE-GNN/outputs`.
+Only the shared seed-42 support/query manifests are used. Existing non-empty
+cache and experiment directories are never overwritten.
+
 ### Download Datasets
 
 [ISCXVPN2016](https://www.unb.ca/cic/datasets/vpn.html) & [ISCXTOR2016](https://www.unb.ca/cic/datasets/tor.html)
